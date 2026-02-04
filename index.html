@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plot Management System</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #10b981;
+            --primary-light: #d1fae5;
+            --accent: #3b82f6;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --danger: #ef4444;
+            --shadow: rgba(0, 0, 0, 0.05);
+            --shadow-lg: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app-container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 20px 16px 24px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px var(--shadow-lg);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        .header-subtitle {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sync-indicator {
+            width: 6px;
+            height: 6px;
+            background: #34d399;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 16px;
+            background: white;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stat-card {
+            background: var(--bg);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1;
+        }
+
+        .controls {
+            padding: 16px;
+            background: white;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 84px;
+            z-index: 90;
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: var(--bg);
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 18px;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+            background: #059669;
+        }
+
+        .btn-secondary {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:active {
+            transform: scale(0.98);
+            background: #e2e8f0;
+        }
+
+        /* Plot Cards */
+        .plots-container {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .plot-card {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 16px;
+            box-shadow: 0 1px 3px var(--shadow);
+            transition: all 0.2s;
+        }
+
+        .plot-card:active {
+            transform: scale(0.99);
+            box-shadow: 0 4px 12px var(--shadow-lg);
+        }
+
+        .plot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .plot-id-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .plot-id {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-sold {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-available {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .edit-btn {
+            padding: 6px 12px;
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .edit-btn:active {
+            transform: scale(0.95);
+        }
+
+        .plot-name {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .buyer-info {
+            font-size: 14px;
+            color: var(--text);
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+
+        .plot-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: var(--bg);
+            border-radius: 10px;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .detail-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .detail-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .payment-progress {
+            margin-bottom: 8px;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .progress-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .progress-percent {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), #34d399);
+            border-radius: 10px;
+            transition: width 0.3s;
+        }
+
+        .payment-amounts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .amount-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .amount-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .amount-value {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .amount-value.remaining {
+            color: #dc2626;
+            font-size: 14px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            animation: fadeIn 0.2s;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: flex-end;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border-radius: 24px 24px 0 0;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: var(--bg);
+            border: none;
+            color: var(--text);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+        }
+
+        .modal-close:active {
+            transform: scale(0.95);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-section {
+            margin-bottom: 24px;
+        }
+
+        .form-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .form-label.readonly {
+            color: var(--text-secondary);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .form-input:disabled {
+            background: var(--bg);
+            color: var(--text-secondary);
+        }
+
+        .form-input.calculated {
+            background: #ecfdf5;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        textarea.form-input {
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--bg);
+            border-radius: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        .checkbox-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            position: sticky;
+            bottom: 0;
+            background: white;
+        }
+
+        .modal-footer .btn {
+            flex: 1;
+            padding: 14px;
+            font-size: 15px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 32px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.4;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Desktop adjustments */
+        @media (min-width: 768px) {
+            .app-container {
+                max-width: 800px;
+                margin: 0 auto;
+            }
+
+            .plots-container {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+
+            .modal.active {
+                align-items: center;
+                justify-content: center;
+            }
+
+            .modal-content {
+                border-radius: 16px;
+                max-width: 600px;
+                max-height: 90vh;
+            }
+
+            .action-buttons {
+                grid-template-columns: auto auto auto 1fr;
+                gap: 12px;
+            }
+
+            .search-box {
+                margin-bottom: 0;
+            }
+
+            .controls {
+                display: flex;
+                gap: 12px;
+                align-items: center;
+            }
+        }
+
+        .timestamp {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-style: italic;
+            margin-top: 4px;
+        }
+    
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 10px 0;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+    
+        /* Filter dropdown (mobile) */
+        .filter-dropdown {
+            display: none;
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        @media (max-width: 640px) {
+            .filter-buttons {
+                display: none;
+            }
+            .filter-dropdown {
+                display: block;
+                margin: 10px 0;
+            }
+        }
+
+    
+        /* Extra details toggle */
+        .details-toggle {
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 6px;
+            display: inline-block;
+        }
+
+        .plot-extra-details {
+            display: none;
+            font-size: 13px;
+            color: #334155;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .plot-extra-details.show {
+            display: block;
+        }
+
+        .overdue-text {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .phone-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <div class="header-top">
+                <h1>Plot Management</h1>
+            </div>
+            <div class="header-subtitle">
+                <span class="sync-indicator"></span>
+                Real-time sync enabled
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Plots</div>
+                <div class="stat-value" id="totalPlots">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Sold</div>
+                <div class="stat-value" id="soldPlots">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">With Buyers</div>
+                <div class="stat-value" id="plotsWithBuyers">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Available</div>
+                <div class="stat-value" id="availablePlots">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Amount</div>
+                <div class="stat-value" id="totalAmountAll">₹0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Remaining Amount</div>
+                <div class="stat-value" id="remainingAmountAll">₹0</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Search plots, buyers...">
+            </div>
+
+            <select class="filter-dropdown" id="filterDropdown" onchange="setFilter(this.value, null)">
+                <option value="all">All</option>
+                <option value="sold">Sold</option>
+                <option value="unsold">Unsold</option>
+                <option value="completed">Payment Complete</option>
+                <option value="remaining">Payment Pending</option>
+                <option value="overdue">Overdue Payment</option>
+            </select>
+
+            <div class="filter-buttons">
+                <button class="btn btn-secondary filter-btn active" onclick="setFilter('all', this)">All</button>
+                <button class="btn btn-secondary filter-btn" onclick="setFilter('sold', this)">Sold</button>
+                <button class="btn btn-secondary filter-btn" onclick="setFilter('unsold', this)">Unsold</button>
+                <button class="btn btn-secondary filter-btn" onclick="setFilter('completed', this)">Payment Complete</button>
+                <button class="btn btn-secondary filter-btn" onclick="setFilter('remaining', this)">Payment Pending</button>
+                <button class="btn btn-secondary filter-btn" onclick="setFilter('overdue', this)">Overdue</button>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="addNewPlot()">➕ Add Plot</button>
+                <button class="btn btn-secondary" onclick="exportToExcel()">📊 Excel</button>
+                <button class="btn btn-secondary" onclick="exportToPDF()">📄 PDF</button>
+            </div>
+        </div>
+
+        <div class="plots-container" id="plotsContainer">
+            <!-- Plot cards will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <!-- Edit/Add Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Edit Plot</h2>
+                <button class="modal-close" onclick="closeModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="plotForm">
+                    <!-- Plot Identification -->
+                    <div class="form-section">
+                        <div class="form-section-title">Plot Information</div>
+                        <div class="form-group">
+                            <label class="form-label readonly">Plot ID</label>
+                            <input type="text" class="form-input" id="plotId" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Plot Name/Number</label>
+                            <input type="text" class="form-input" id="plotName" placeholder="As per layout map">
+                        </div>
+                    </div>
+
+                    <!-- Buyer Details -->
+                    <div class="form-section">
+                        <div class="form-section-title">Buyer Details</div>
+                        <div class="form-group">
+                            <label class="form-label">Buyer Name</label>
+                            <input type="text" class="form-input" id="buyerName" placeholder="Enter buyer name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Mobile Number</label>
+                            <input type="tel" class="form-input" id="buyerMobile" placeholder="10-digit mobile">
+                        </div>
+                    </div>
+
+                    <!-- Plot Dimensions & Rate -->
+                    <div class="form-section">
+                        <div class="form-section-title">Dimensions & Rate</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Size (sq ft)</label>
+                                <input type="number" class="form-input" id="size" placeholder="0" step="0.01" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Rate/sq ft</label>
+                                <input type="number" class="form-input" id="rate" placeholder="0" step="0.01" min="0">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label readonly">Total Amount</label>
+                            <input type="text" class="form-input calculated" id="totalAmount" disabled>
+                        </div>
+                    </div>
+
+                    <!-- Payment Details -->
+                    <div class="form-section">
+                        <div class="form-section-title">Payment Details</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Booking Date</label>
+                                <input type="date" class="form-input" id="bookingDate">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Booking Amount</label>
+                                <input type="number" class="form-input" id="bookingAmount" placeholder="0" step="0.01" min="0">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Isar Date</label>
+                                <input type="date" class="form-input" id="isarDate">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Isar Amount</label>
+                                <input type="number" class="form-input" id="isarAmount" placeholder="0" step="0.01" min="0">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label readonly">Amount Paid</label>
+                                <input type="text" class="form-input calculated" id="amountPaid" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label readonly">Remaining</label>
+                                <input type="text" class="form-input calculated" id="remainingAmount" disabled>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label readonly">Payment Due Date</label>
+                            <input type="text" class="form-input calculated" id="remainingAmountDate" disabled>
+                        </div>
+                    </div>
+
+                    <!-- Additional Info -->
+                    <div class="form-section">
+                        <div class="form-section-title">Additional Information</div>
+                        <div class="form-group">
+                            <label class="form-label">Remarks</label>
+                            <textarea class="form-input" id="description" placeholder="Any notes or remarks"></textarea>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="soldStatus">
+                            <label class="checkbox-label" for="soldStatus">Mark as Sold</label>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label readonly">Last Updated</label>
+                            <input type="text" class="form-input timestamp" id="lastUpdated" disabled>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="savePlot()">💾 Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // SUPABASE CONFIGURATION
+        // ============================================
+        // REPLACE THESE WITH YOUR ACTUAL SUPABASE CREDENTIALS
+        const SUPABASE_URL = 'https://ghkcxvhqjeyqteaipkdv.supabase.co'; // e.g., 'https://xxxxx.supabase.co'
+        const SUPABASE_ANON_KEY = 'sb_publishable_HRm6gzb1bxyYR40pXtv6ZA_mYCx65gq'; // Your anon/public key
+        
+        // Initialize Supabase client
+        if (!window._supabaseClient) {
+        window._supabaseClient = window.supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_ANON_KEY
+        );
+    }
+
+    // Use existing global reference to avoid redeclaration errors
+    var supabase = window._supabaseClient;
+        
+        // ============================================
+        // APPLICATION STATE
+        // ============================================
+        let plots = [];
+        let currentEditId = null;
+        let realtimeChannel = null;
+        let currentFilter = 'all';
+
+        // Initialize on load
+        window.addEventListener('load', async () => {
+            
+            const savedFilter = localStorage.getItem('selectedFilter') || 'all';
+            currentFilter = savedFilter;
+            const dropdown = document.getElementById('filterDropdown');
+            if (dropdown) dropdown.value = savedFilter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.textContent.toLowerCase().includes(savedFilter)) {
+                    btn.classList.add('active');
+                }
+            });
+
+            await loadPlots();
+
+            renderPlots();
+            updateStats();
+            setupEventListeners();
+            subscribeToRealtimeUpdates();
+        });
+
+        // ============================================
+        // SUPABASE DATABASE FUNCTIONS
+        // ============================================
+        
+        // Load plots from Supabase
+        async function loadPlots() {
+            try {
+                const { data, error } = await supabase
+                    .from('plots')
+                    .select('*')
+                    ;
+
+                if (error) {
+                    console.error('Error loading plots:', error);
+                    
+                    // If table doesn't exist or is empty, initialize plots
+                    if (error.code === 'PGRST116' || (data && data.length === 0)) {
+                        await initializePlots();
+                        return;
+                    }
+                    throw error;
+                }
+
+                if (!data || data.length === 0) {
+                    // First launch - create 135 plots
+                    await initializePlots();
+                } else {
+                    plots = data.map(plot => ({
+                        plotId: plot.plot_id,
+                        plotName: plot.plot_name || '',
+                        buyerName: plot.buyer_name || '',
+                        buyerMobile: plot.buyer_mobile || '',
+                        size: plot.size || 0,
+                        rate: plot.rate || 0,
+                        totalAmount: plot.total_amount || 0,
+                        bookingDate: plot.booking_date || '',
+                        bookingAmount: plot.booking_amount || 0,
+                        isarDate: plot.isar_date || '',
+                        isarAmount: plot.isar_amount || 0,
+                        amountPaid: plot.amount_paid || 0,
+                        remainingAmount: plot.remaining_amount || 0,
+                        remainingAmountDate: plot.remaining_amount_date || '',
+                        description: plot.description || '',
+                        sold: plot.sold || false,
+                        lastUpdated: plot.last_updated || new Date().toISOString()
+                    }));
+
+// ✅ NUMERIC SORT: ensure P1 → P135 order
+plots.sort((a, b) => {
+    const numA = parseInt(a.plotId.slice(1), 10);
+    const numB = parseInt(b.plotId.slice(1), 10);
+    return numA - numB;
+});
+
+                }
+            } catch (error) {
+                console.error('Error loading plots:', error);
+                alert('Error loading data. Please check your Supabase configuration.');
+            }
+        }
+
+        // Initialize 135 plots on first launch
+        async function initializePlots() {
+            const initialPlots = [];
+            for (let i = 1; i <= 135; i++) {
+                initialPlots.push(createEmptyPlotForDB(`P${i}`));
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('plots')
+                    .insert(initialPlots);
+
+                if (error) throw error;
+
+                // Reload plots after initialization
+                
+            const savedFilter = localStorage.getItem('selectedFilter') || 'all';
+            currentFilter = savedFilter;
+            const dropdown = document.getElementById('filterDropdown');
+            if (dropdown) dropdown.value = savedFilter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.textContent.toLowerCase().includes(savedFilter)) {
+                    btn.classList.add('active');
+                }
+            });
+
+            await loadPlots();
+
+            } catch (error) {
+                console.error('Error initializing plots:', error);
+                alert('Error initializing plots. Please check your database setup.');
+            }
+        }
+
+        // Create empty plot structure for database
+        function createEmptyPlotForDB(plotId) {
+            return {
+                plot_id: plotId,
+                plot_name: '',
+                buyer_name: '',
+                buyer_mobile: '',
+                size: 0,
+                rate: 0,
+                total_amount: 0,
+                booking_date: null,
+                booking_amount: 0,
+                isar_date: null,
+                isar_amount: 0,
+                amount_paid: 0,
+                remaining_amount: 0,
+                remaining_amount_date: null,
+                description: '',
+                sold: false,
+                last_updated: new Date().toISOString()
+            };
+        }
+
+        // Create empty plot structure (for UI)
+        function createEmptyPlot(plotId) {
+            return {
+                plotId: plotId,
+                plotName: '',
+                buyerName: '',
+                buyerMobile: '',
+                size: 0,
+                rate: 0,
+                totalAmount: 0,
+                bookingDate: '',
+                bookingAmount: 0,
+                isarDate: '',
+                isarAmount: 0,
+                amountPaid: 0,
+                remainingAmount: 0,
+                remainingAmountDate: '',
+                description: '',
+                sold: false,
+                lastUpdated: new Date().toISOString()
+            };
+        }
+
+        // Subscribe to real-time updates
+        function subscribeToRealtimeUpdates() {
+            realtimeChannel = supabase
+                .channel('plots-changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'plots'
+                    },
+                    async (payload) => {
+                        console.log('Real-time update received:', payload);
+                        
+            const savedFilter = localStorage.getItem('selectedFilter') || 'all';
+            currentFilter = savedFilter;
+            const dropdown = document.getElementById('filterDropdown');
+            if (dropdown) dropdown.value = savedFilter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.textContent.toLowerCase().includes(savedFilter)) {
+                    btn.classList.add('active');
+                }
+            });
+
+            await loadPlots();
+
+                        renderPlots();
+                        updateStats();
+                    }
+                )
+                .subscribe();
+        }
+
+        // Save or update plot in Supabase
+        async function savePlotToDatabase(plotData) {
+            const dbPlot = {
+                plot_id: plotData.plotId,
+                plot_name: plotData.plotName,
+                buyer_name: plotData.buyerName,
+                buyer_mobile: plotData.buyerMobile,
+                size: plotData.size,
+                rate: plotData.rate,
+                total_amount: plotData.totalAmount,
+                booking_date: plotData.bookingDate || null,
+                booking_amount: plotData.bookingAmount,
+                isar_date: plotData.isarDate || null,
+                isar_amount: plotData.isarAmount,
+                amount_paid: plotData.amountPaid,
+                remaining_amount: plotData.remainingAmount,
+                remaining_amount_date: plotData.remainingAmountDate || null,
+                description: plotData.description,
+                sold: plotData.sold,
+                last_updated: plotData.lastUpdated
+            };
+
+            try {
+                // Check if plot exists
+                const { data: existing } = await supabase
+                    .from('plots')
+                    .select('plot_id')
+                    .eq('plot_id', plotData.plotId)
+                    .single();
+
+                if (existing) {
+                    // Update existing plot
+                    const { error } = await supabase
+                        .from('plots')
+                        .update(dbPlot)
+                        .eq('plot_id', plotData.plotId);
+
+                    if (error) throw error;
+                } else {
+                    // Insert new plot
+                    const { error } = await supabase
+                        .from('plots')
+                        .insert([dbPlot]);
+
+                    if (error) throw error;
+                }
+
+                return true;
+            } catch (error) {
+                console.error('Error saving plot:', error);
+                throw error;
+            }
+        }
+
+        // ============================================
+        // CALCULATION FUNCTIONS
+        // ============================================
+        
+        // Calculate derived fields
+        function calculateFields(plot) {
+            // Total Amount = Size × Rate
+            plot.totalAmount = (parseFloat(plot.size) || 0) * (parseFloat(plot.rate) || 0);
+            
+            // Amount Paid = Booking Amount + Isar Amount
+            plot.amountPaid = (parseFloat(plot.bookingAmount) || 0) + (parseFloat(plot.isarAmount) || 0);
+            
+            // Remaining Amount = Total Amount - Amount Paid
+            plot.remainingAmount = plot.totalAmount - plot.amountPaid;
+            
+            // Remaining Amount Date = Isar Date + 11 months
+            if (plot.isarDate) {
+                const isarDate = new Date(plot.isarDate);
+                isarDate.setMonth(isarDate.getMonth() + 11);
+                plot.remainingAmountDate = isarDate.toISOString().split('T')[0];
+            } else {
+                plot.remainingAmountDate = '';
+            }
+            
+            return plot;
+        }
+
+        
+        
+        function setFilter(filter, button) {
+            currentFilter = filter;
+            localStorage.setItem('selectedFilter', filter);
+
+            // Sync dropdown
+            const dropdown = document.getElementById('filterDropdown');
+            if (dropdown) dropdown.value = filter;
+
+            // Sync buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            if (button) button.classList.add('active');
+
+            renderPlots();
+        }
+
+        // ============================================
+        // UI RENDERING FUNCTIONS
+        // ============================================
+        
+        // Render plots table
+        function renderPlots() {
+            const container = document.getElementById('plotsContainer');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            // Filter plots based on search
+            const filteredPlots = plots.filter(plot => {
+                // Text search
+                const matchesSearch = !searchTerm ||
+                    plot.plotId.toLowerCase().includes(searchTerm) ||
+                    plot.plotName.toLowerCase().includes(searchTerm) ||
+                    plot.buyerName.toLowerCase().includes(searchTerm) ||
+                    plot.buyerMobile.includes(searchTerm);
+
+                if (!matchesSearch) return false;
+
+                // Status filter
+                switch (currentFilter) {
+                    case 'unsold':
+                        return !plot.sold;
+                    case 'sold':
+                        return plot.sold;
+                    case 'remaining':
+                        return plot.sold && plot.remainingAmount > 0;
+                    case 'completed':
+                        return plot.sold && plot.remainingAmount <= 0;
+                    case 'overdue':
+                        if (!plot.sold || !plot.remainingAmountDate) return false;
+                        return new Date(plot.remainingAmountDate) < new Date() && plot.remainingAmount > 0;
+                    default:
+                        return true;
+                }
+            });
+
+            if (filteredPlots.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <div>No plots found matching your search</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filteredPlots.map(plot => {
+                const paymentPercent = plot.totalAmount > 0 
+                    ? Math.round((plot.amountPaid / plot.totalAmount) * 100) 
+                    : 0;
+                
+                return `
+                    <div class="plot-card" onclick="editPlot('${plot.plotId}')">
+                        <div class="plot-header">
+                            <div class="plot-id-section">
+                                <div class="plot-id">${plot.plotId}</div>
+                                <span class="status-badge ${plot.sold ? 'status-sold' : 'status-available'}">
+                                    ${plot.sold ? 'Sold' : 'Available'}
+                                </span>
+                            </div>
+                            <button class="edit-btn" onclick="event.stopPropagation(); editPlot('${plot.plotId}')">
+                                ✏️ Edit
+                            </button>
+                        </div>
+                        
+                        ${plot.plotName ? `<div class="plot-name">📍 ${plot.plotName}</div>` : '<div class="plot-name" style="color: #94a3b8;">📍 No name assigned</div>'}
+                        
+                        <div class="buyer-info">
+                            ${plot.buyerName || '<span style="color: #94a3b8;">No buyer assigned</span>'}
+                        </div>
+                        
+                        <span class="details-toggle" onclick="event.stopPropagation(); toggleDetails('${plot.plotId}')">
+                            ▶ More details
+                        </span>
+                        <div class="plot-extra-details ${(plot.remainingAmount > 0 && plot.remainingAmountDate && new Date(plot.remainingAmountDate) < new Date()) ? "show" : ""}" id="details-${plot.plotId}">
+                            📞 <a class="phone-link" href="tel:${plot.buyerMobile}">${plot.buyerMobile || '—'}</a><br>
+                            📅 Booking: ${plot.bookingDate || '—'} (₹${formatNumber(plot.bookingAmount || 0)})<br>
+                            📅 Isar: ${plot.isarDate || '—'} (₹${formatNumber(plot.isarAmount || 0)})<br>
+                            ⏳ Due Date:
+                            <span class="${(plot.remainingAmount > 0 && plot.remainingAmountDate && new Date(plot.remainingAmountDate) < new Date()) ? 'overdue-text' : ''}">
+                                ${plot.remainingAmountDate || '—'}
+                            </span><br>
+                            📝 ${plot.description || '<span style="color:#94a3b8;">No remarks</span>'}
+                        </div>
+
+                        
+                        <div class="plot-details">
+                            <div class="detail-item">
+                                <div class="detail-label">📏 Size</div>
+                                <div class="detail-value">${formatNumber(plot.size || 0)} sq ft</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">₹ Rate</div>
+                                <div class="detail-value">₹${formatNumber(plot.rate || 0)}/sq ft</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">💰 Total</div>
+                                <div class="detail-value">₹${formatNumber(plot.totalAmount || 0)}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="payment-progress">
+                            <div class="progress-header">
+                                <span class="progress-label">Payment Progress</span>
+                                <span class="progress-percent">${paymentPercent}%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${paymentPercent}%"></div>
+                            </div>
+                            <div class="payment-amounts">
+                                <div class="amount-item">
+                                    <span class="amount-label">Paid</span>
+                                    <span class="amount-value">₹${formatNumber(plot.amountPaid || 0)}</span>
+                                </div>
+                                <div class="amount-item">
+                                    <span class="amount-label">Remaining</span>
+                                    <span class="amount-value remaining">₹${formatNumber(plot.remainingAmount || 0)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update statistics
+        function updateStats() {
+            const totalPlots = plots.length;
+            const soldPlots = plots.filter(p => p.sold).length;
+            const plotsWithBuyers = plots.filter(p => p.buyerName && p.buyerName.trim()).length;
+            const availablePlots = plots.filter(p => !p.sold).length;
+
+            const totalAmountAll = plots.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+            const remainingAmountAll = plots.reduce((sum, p) => sum + (p.remainingAmount || 0), 0);
+
+            document.getElementById('totalPlots').textContent = totalPlots;
+            document.getElementById('soldPlots').textContent = soldPlots;
+            document.getElementById('plotsWithBuyers').textContent = plotsWithBuyers;
+            document.getElementById('availablePlots').textContent = availablePlots;
+            document.getElementById('totalAmountAll').textContent = '₹' + formatNumber(totalAmountAll);
+            document.getElementById('remainingAmountAll').textContent = '₹' + formatNumber(remainingAmountAll);
+        }
+
+        // Format number with Indian numbering system
+        function formatNumber(num) {
+            return new Intl.NumberFormat('en-IN', {
+                maximumFractionDigits: 2,
+                minimumFractionDigits: 0
+            }).format(num);
+        }
+
+        // ============================================
+        // MODAL AND FORM FUNCTIONS
+        // ============================================
+        
+        // Add new plot
+        async function addNewPlot() {
+            // Find next plot ID
+            const plotNumbers = plots.map(p => {
+                const match = p.plotId.match(/^P(\d+)$/);
+                return match ? parseInt(match[1]) : 0;
+            });
+            const nextNumber = Math.max(...plotNumbers, 0) + 1;
+            const newPlotId = `P${nextNumber}`;
+
+            currentEditId = null;
+            document.getElementById('modalTitle').textContent = 'Add New Plot';
+            document.getElementById('plotId').value = newPlotId;
+            
+            // Reset form
+            document.getElementById('plotForm').reset();
+            document.getElementById('plotId').value = newPlotId;
+            updateCalculatedFields();
+            
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        // Edit plot
+        function editPlot(plotId) {
+            const plot = plots.find(p => p.plotId === plotId);
+            if (!plot) return;
+
+            currentEditId = plotId;
+            document.getElementById('modalTitle').textContent = `Edit Plot ${plotId}`;
+            
+            // Populate form
+            document.getElementById('plotId').value = plot.plotId;
+            document.getElementById('plotName').value = plot.plotName || '';
+            document.getElementById('buyerName').value = plot.buyerName || '';
+            document.getElementById('buyerMobile').value = plot.buyerMobile || '';
+            document.getElementById('size').value = plot.size || '';
+            document.getElementById('rate').value = plot.rate || '';
+            document.getElementById('bookingDate').value = plot.bookingDate || '';
+            document.getElementById('bookingAmount').value = plot.bookingAmount || '';
+            document.getElementById('isarDate').value = plot.isarDate || '';
+            document.getElementById('isarAmount').value = plot.isarAmount || '';
+            document.getElementById('description').value = plot.description || '';
+            document.getElementById('soldStatus').checked = plot.sold || false;
+            
+            updateCalculatedFields();
+            
+            if (plot.lastUpdated) {
+                const date = new Date(plot.lastUpdated);
+                document.getElementById('lastUpdated').value = date.toLocaleString('en-IN');
+            }
+            
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        // Update calculated fields in form
+        function updateCalculatedFields() {
+            const size = parseFloat(document.getElementById('size').value) || 0;
+            const rate = parseFloat(document.getElementById('rate').value) || 0;
+            const bookingAmount = parseFloat(document.getElementById('bookingAmount').value) || 0;
+            const isarAmount = parseFloat(document.getElementById('isarAmount').value) || 0;
+            const isarDate = document.getElementById('isarDate').value;
+
+            const totalAmount = size * rate;
+            const amountPaid = bookingAmount + isarAmount;
+            const remainingAmount = totalAmount - amountPaid;
+
+            document.getElementById('totalAmount').value = `₹${formatNumber(totalAmount)}`;
+            document.getElementById('amountPaid').value = `₹${formatNumber(amountPaid)}`;
+            document.getElementById('remainingAmount').value = `₹${formatNumber(remainingAmount)}`;
+
+            if (isarDate) {
+                const date = new Date(isarDate);
+                date.setMonth(date.getMonth() + 11);
+                document.getElementById('remainingAmountDate').value = date.toLocaleDateString('en-IN');
+            } else {
+                document.getElementById('remainingAmountDate').value = '';
+            }
+        }
+
+        // Save plot
+        async function savePlot() {
+            const plotId = document.getElementById('plotId').value;
+            
+            const plotData = {
+                plotId: plotId,
+                plotName: document.getElementById('plotName').value.trim(),
+                buyerName: document.getElementById('buyerName').value.trim(),
+                buyerMobile: document.getElementById('buyerMobile').value.trim(),
+                size: parseFloat(document.getElementById('size').value) || 0,
+                rate: parseFloat(document.getElementById('rate').value) || 0,
+                bookingDate: document.getElementById('bookingDate').value,
+                bookingAmount: parseFloat(document.getElementById('bookingAmount').value) || 0,
+                isarDate: document.getElementById('isarDate').value,
+                isarAmount: parseFloat(document.getElementById('isarAmount').value) || 0,
+                description: document.getElementById('description').value.trim(),
+                sold: document.getElementById('soldStatus').checked,
+                lastUpdated: new Date().toISOString()
+            };
+
+            // Calculate derived fields
+            calculateFields(plotData);
+
+            try {
+                await savePlotToDatabase(plotData);
+                closeModal();
+                
+                // Reload and refresh
+                
+            const savedFilter = localStorage.getItem('selectedFilter') || 'all';
+            currentFilter = savedFilter;
+            const dropdown = document.getElementById('filterDropdown');
+            if (dropdown) dropdown.value = savedFilter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.textContent.toLowerCase().includes(savedFilter)) {
+                    btn.classList.add('active');
+                }
+            });
+
+            await loadPlots();
+
+                renderPlots();
+                updateStats();
+            } catch (error) {
+                console.error('Error saving plot:', error);
+                alert('Error saving plot. Please try again.');
+            }
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('editModal').classList.remove('active');
+            currentEditId = null;
+        }
+
+        
+        function toggleDetails(plotId) {
+            const el = document.getElementById('details-' + plotId);
+            if (!el) return;
+            el.classList.toggle('show');
+        }
+
+
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+        
+        // Setup event listeners
+        function setupEventListeners() {
+            // Search
+            document.getElementById('searchInput').addEventListener('input', renderPlots);
+
+            // Auto-calculate on input change
+            ['size', 'rate', 'bookingAmount', 'isarAmount', 'isarDate'].forEach(id => {
+                document.getElementById(id).addEventListener('input', updateCalculatedFields);
+            });
+
+            // Close modal on outside click
+            document.getElementById('editModal').addEventListener('click', (e) => {
+                if (e.target.id === 'editModal') {
+                    closeModal();
+                }
+            });
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (realtimeChannel) {
+                supabase.removeChannel(realtimeChannel);
+            }
+        });
+
+        // ============================================
+        // EXPORT FUNCTIONS
+        // ============================================
+        
+        // Export to Excel
+        function exportToExcel() {
+            const exportData = plots.map(plot => ({
+                'Plot ID': plot.plotId,
+                'Plot Name/Number': plot.plotName,
+                'Buyer Name': plot.buyerName,
+                'Buyer Mobile': plot.buyerMobile,
+                'Size (sq ft)': plot.size,
+                'Rate per sq ft': plot.rate,
+                'Total Plot Amount': plot.totalAmount,
+                'Booking Date': plot.bookingDate,
+                'Booking Amount': plot.bookingAmount,
+                'Isar Date': plot.isarDate,
+                'Isar Amount': plot.isarAmount,
+                'Amount Paid': plot.amountPaid,
+                'Remaining Amount': plot.remainingAmount,
+                'Remaining Amount Date': plot.remainingAmountDate,
+                'Description/Remarks': plot.description,
+                'Sold': plot.sold ? 'Yes' : 'No',
+                'Last Updated': new Date(plot.lastUpdated).toLocaleString('en-IN')
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Plots');
+
+            // Auto-size columns
+            const maxWidth = 20;
+            const wscols = Object.keys(exportData[0] || {}).map(() => ({ wch: maxWidth }));
+            ws['!cols'] = wscols;
+
+            const fileName = `Plot_Management_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        }
+
+        // Export to PDF
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+
+            // Title
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('Plot Management Report', 105, 15, { align: 'center' });
+
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, 105, 22, { align: 'center' });
+
+            // Prepare data
+            const tableData = plots.map(plot => [
+                plot.plotId,
+                plot.plotName || '-',
+                plot.buyerName || '-',
+                `₹${formatNumber(plot.remainingAmount)}`
+            ]);
+
+            // Table headers
+            const headers = [['Plot ID', 'Plot Name', 'Buyer Name', 'Remaining Amount']];
+
+            // Add table
+            doc.setFontSize(9);
+            let y = 30;
+            const lineHeight = 7;
+            const pageHeight = 280;
+
+            // Headers
+            doc.setFont(undefined, 'bold');
+            headers[0].forEach((header, i) => {
+                const x = 10 + (i * 47.5);
+                doc.text(header, x, y);
+            });
+            doc.line(10, y + 2, 200, y + 2);
+            y += lineHeight;
+
+            // Data
+            doc.setFont(undefined, 'normal');
+            tableData.forEach((row, rowIndex) => {
+                if (y > pageHeight) {
+                    doc.addPage();
+                    y = 20;
+                }
+
+                row.forEach((cell, i) => {
+                    const x = 10 + (i * 47.5);
+                    const text = String(cell).substring(0, 30);
+                    doc.text(text, x, y);
+                });
+                y += lineHeight;
+            });
+
+            // Save
+            const fileName = `Plot_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(fileName);
+        }
+    </script>
+</body>
+</html>
