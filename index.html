@@ -1305,11 +1305,11 @@ plots.sort((a, b) => {
                         </span>
                         <div class="plot-extra-details ${(plot.remainingAmount > 0 && plot.remainingAmountDate && new Date(plot.remainingAmountDate) < new Date()) ? "show" : ""}" id="details-${plot.plotId}">
                             📞 <a class="phone-link" href="tel:${plot.buyerMobile}">${plot.buyerMobile || '—'}</a><br>
-                            📅 Booking: ${plot.bookingDate || '—'} (₹${formatNumber(plot.bookingAmount || 0)})<br>
-                            📅 Isar: ${plot.isarDate || '—'} (₹${formatNumber(plot.isarAmount || 0)})<br>
+                            📅 Booking: ${formatDateDDMMYYYY(plot.bookingDate)} (₹${formatNumber(plot.bookingAmount || 0)})<br>
+                            📅 Isar: ${formatDateDDMMYYYY(plot.isarDate)} (₹${formatNumber(plot.isarAmount || 0)})<br>
                             ⏳ Due Date:
                             <span class="${(plot.remainingAmount > 0 && plot.remainingAmountDate && new Date(plot.remainingAmountDate) < new Date()) ? 'overdue-text' : ''}">
-                                ${plot.remainingAmountDate || '—'}
+                                ${formatDateDDMMYYYY(plot.remainingAmountDate)}
                             </span><br>
                             📝 ${plot.description || '<span style="color:#94a3b8;">No remarks</span>'}
                         </div>
@@ -1432,7 +1432,7 @@ plots.sort((a, b) => {
             
             if (plot.lastUpdated) {
                 const date = new Date(plot.lastUpdated);
-                document.getElementById('lastUpdated').value = date.toLocaleString('en-IN');
+                document.getElementById('lastUpdated').value = formatDateDDMMYYYY(plot.lastUpdated);
             }
             
             document.getElementById('editModal').classList.add('active');
@@ -1526,6 +1526,17 @@ plots.sort((a, b) => {
         }
 
 
+        
+        function formatDateDDMMYYYY(dateStr) {
+            if (!dateStr) return '—';
+            const d = new Date(dateStr);
+            if (isNaN(d)) return '—';
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
         // ============================================
         // EVENT LISTENERS
         // ============================================
@@ -1569,13 +1580,13 @@ plots.sort((a, b) => {
                 'Size (sq ft)': plot.size,
                 'Rate per sq ft': plot.rate,
                 'Total Plot Amount': plot.totalAmount,
-                'Booking Date': plot.bookingDate,
+                'Booking Date': formatDateDDMMYYYY(plot.bookingDate),
                 'Booking Amount': plot.bookingAmount,
-                'Isar Date': plot.isarDate,
+                'Isar Date': formatDateDDMMYYYY(plot.isarDate),
                 'Isar Amount': plot.isarAmount,
                 'Amount Paid': plot.amountPaid,
                 'Remaining Amount': plot.remainingAmount,
-                'Remaining Amount Date': plot.remainingAmountDate,
+                'Remaining Amount Date': formatDateDDMMYYYY(plot.remainingAmountDate),
                 'Description/Remarks': plot.description,
                 'Sold': plot.sold ? 'Yes' : 'No',
                 'Last Updated': new Date(plot.lastUpdated).toLocaleString('en-IN')
