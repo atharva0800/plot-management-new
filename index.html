@@ -710,14 +710,16 @@
         }
 
     
-        .plot-id.sold-name { color: #dc2626; }
-        .plot-id.available-name { color: #16a34a; }
+        .plot-id.sold-name { color: #16a34a; }
+        .plot-id.available-name { color: #dc2626; }
 
         .plot-id.highlight {
             font-size: 1.2rem;
             font-weight: 700;
-            color: #1e40af;
+            color: inherit; /* let sold/available classes control the color */
         }
+        .plot-id.highlight.sold-name { color: #16a34a; }      /* Green */
+        .plot-id.highlight.available-name { color: #dc2626; } /* Red */
         .plot-id .internal-id {
             font-size: 0.75rem;
             font-weight: 400;
