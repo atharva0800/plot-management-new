@@ -709,7 +709,20 @@
             font-weight: 600;
         }
 
-    </style>
+    
+        .plot-id.highlight {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #1e40af;
+        }
+        .plot-id .internal-id {
+            font-size: 0.75rem;
+            font-weight: 400;
+            color: #6b7280;
+            margin-left: 6px;
+        }
+
+</style>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -765,6 +778,21 @@
                 <option value="remaining">Payment Pending</option>
                 <option value="overdue">Overdue Payment</option>
             </select>
+
+            <select class="filter-dropdown" id="prefixFilterDropdown"
+                onchange="setPrefixFilter(this.value, null)">
+                <option value="all">All Blocks</option>
+                <option value="14/3">14/3</option>
+                <option value="14/4">14/4</option>
+                <option value="14/5">14/5</option>
+            </select>
+
+            <div class="filter-buttons">
+                <button class="btn btn-secondary prefix-btn active" onclick="setPrefixFilter('all', this)">All Blocks</button>
+                <button class="btn btn-secondary prefix-btn" onclick="setPrefixFilter('14/3', this)">14/3</button>
+                <button class="btn btn-secondary prefix-btn" onclick="setPrefixFilter('14/4', this)">14/4</button>
+                <button class="btn btn-secondary prefix-btn" onclick="setPrefixFilter('14/5', this)">14/5</button>
+            </div>
 
             <div class="filter-buttons">
                 <button class="btn btn-secondary filter-btn active" onclick="setFilter('all', this)">All</button>
@@ -931,6 +959,7 @@
         let currentEditId = null;
         let realtimeChannel = null;
         let currentFilter = 'all';
+        let plotPrefixFilter = 'all';
 
         // Initialize on load
         window.addEventListener('load', async () => {
@@ -1210,6 +1239,20 @@ plots.sort((a, b) => {
 
         
         
+        function setPrefixFilter(prefix, button) {
+            plotPrefixFilter = prefix;
+
+            const dropdown = document.getElementById('prefixFilterDropdown');
+            if (dropdown) dropdown.value = prefix;
+
+            document.querySelectorAll('.prefix-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            if (button) button.classList.add('active');
+
+            renderPlots();
+        }
+
         function setFilter(filter, button) {
             currentFilter = filter;
             localStorage.setItem('selectedFilter', filter);
@@ -1246,6 +1289,13 @@ plots.sort((a, b) => {
                     plot.buyerMobile.includes(searchTerm);
 
                 if (!matchesSearch) return false;
+
+                // Plot name prefix filter
+                if (plotPrefixFilter !== 'all') {
+                    if (!plot.plotName || !plot.plotName.startsWith(plotPrefixFilter)) {
+                        return false;
+                    }
+                }
 
                 // Status filter
                 switch (currentFilter) {
@@ -1284,7 +1334,12 @@ plots.sort((a, b) => {
                     <div class="plot-card" onclick="editPlot('${plot.plotId}')">
                         <div class="plot-header">
                             <div class="plot-id-section">
-                                <div class="plot-id">${plot.plotId}</div>
+                                
+    <div class="plot-id highlight">
+        ${plot.plotName || plot.plotId}
+        ${plot.plotName ? `<small class="internal-id">(${plot.plotId})</small>` : ``}
+    </div>
+    
                                 <span class="status-badge ${plot.sold ? 'status-sold' : 'status-available'}">
                                     ${plot.sold ? 'Sold' : 'Available'}
                                 </span>
@@ -1572,7 +1627,14 @@ plots.sort((a, b) => {
         
         // Export to Excel
         function exportToExcel() {
-            const exportData = plots.map(plot => ({
+            // Sort by Plot Name first, fallback to Plot ID
+            const sortedPlots = [...plots].sort((a, b) => {
+                const nameA = (a.plotName || a.plotId).toString();
+                const nameB = (b.plotName || b.plotId).toString();
+                return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+            const exportData = sortedPlots.map(plot => ({
                 'Plot ID': plot.plotId,
                 'Plot Name/Number': plot.plotName,
                 'Buyer Name': plot.buyerName,
