@@ -710,6 +710,9 @@
         }
 
     
+        .plot-id.sold-name { color: #dc2626; }
+        .plot-id.available-name { color: #16a34a; }
+
         .plot-id.highlight {
             font-size: 1.2rem;
             font-weight: 700;
@@ -1315,6 +1318,14 @@ plots.sort((a, b) => {
                 }
             });
 
+
+            // Sort by Plot Name (fallback to Plot ID) for display
+            filteredPlots.sort((a, b) => {
+                const nameA = (a.plotName || a.plotId || '').toString();
+                const nameB = (b.plotName || b.plotId || '').toString();
+                return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
             if (filteredPlots.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -1335,7 +1346,7 @@ plots.sort((a, b) => {
                         <div class="plot-header">
                             <div class="plot-id-section">
                                 
-    <div class="plot-id highlight">
+    <div class="plot-id highlight ${plot.sold ? 'sold-name' : 'available-name'}">
         ${plot.plotName || plot.plotId}
         ${plot.plotName ? `<small class="internal-id">(${plot.plotId})</small>` : ``}
     </div>
@@ -1346,6 +1357,10 @@ plots.sort((a, b) => {
                             </div>
                             <button class="edit-btn" onclick="event.stopPropagation(); editPlot('${plot.plotId}')">
                                 ✏️ Edit
+                            </button>
+                            <button class="edit-btn" style="color:#dc2626"
+                                onclick="event.stopPropagation(); clearPlot('${plot.plotId}')">
+                                🗑 Clear
                             </button>
                         </div>
                         
@@ -1590,6 +1605,40 @@ plots.sort((a, b) => {
             const month = String(d.getMonth() + 1).padStart(2, '0');
             const year = d.getFullYear();
             return `${day}/${month}/${year}`;
+        }
+
+        async function clearPlot(plotId) {
+            const confirmed = confirm('Are you sure you want to clear all data for this plot? This action cannot be undone.');
+            if (!confirmed) return;
+
+            const emptyPlot = {
+                plotId,
+                plotName: '',
+                buyerName: '',
+                buyerMobile: '',
+                size: 0,
+                rate: 0,
+                bookingDate: '',
+                bookingAmount: 0,
+                isarDate: '',
+                isarAmount: 0,
+                amountPaid: 0,
+                remainingAmount: 0,
+                remainingAmountDate: '',
+                description: '',
+                sold: false,
+                lastUpdated: new Date().toISOString()
+            };
+
+            try {
+                await savePlotToDatabase(emptyPlot);
+                await loadPlots();
+                renderPlots();
+                updateStats();
+            } catch (e) {
+                alert('Failed to clear plot data.');
+                console.error(e);
+            }
         }
 
         // ============================================
